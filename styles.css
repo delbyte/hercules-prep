@@ -1,0 +1,46 @@
+:root{
+  --bg: #ffffff;
+  --text: #0b0b0b;
+  --muted: #6b7280;
+  --accent: #0ea5e9; /* sky blue */
+  --max-width: 900px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background:var(--bg);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  line-height:1.6;
+}
+.container{max-width:var(--max-width);margin:32px auto;padding:0 20px}
+.site-header{border-bottom:1px solid #eef2f7;padding:28px 0}
+.site-header h1{margin:0;font-size:1.5rem;font-weight:700}
+
+.markdown-body h1{font-size:1.6rem;margin:0 0 8px}
+.markdown-body h2{font-size:1.25rem;margin-top:28px;margin-bottom:8px;font-weight:700}
+.markdown-body h3{font-size:1.05rem;margin-top:22px;margin-bottom:6px}
+
+.markdown-body p{margin:0 0 12px}
+.markdown-body ul, .markdown-body ol{margin:0 0 12px 1.15rem;padding:0}
+.markdown-body li{margin:6px 0}
+
+hr{border:0;border-top:1px solid #eef2f7;margin:24px 0}
+
+/* links */
+.markdown-body a{color:var(--accent);text-decoration:none}
+.markdown-body a:hover{text-decoration:underline;color:#0284c7}
+
+/* code blocks */
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;font-size:0.95rem}
+code{background:#f3f4f6;padding:2px 6px;border-radius:6px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace}
+
+blockquote{border-left:4px solid var(--accent);padding:8px 16px;margin:12px 0;background:rgba(14,165,233,0.03)}
+
+.footer{color:var(--muted);font-size:0.9rem;padding:24px 0 64px}
+
+/* responsive */
+@media (max-width:640px){.container{margin:20px auto;padding:0 16px}.site-header h1{font-size:1.25rem}}

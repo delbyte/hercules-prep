@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hercules SWE AI Agent Interview Grind Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>Hercules SWE AI Agent Interview Grind Guide (Deep Version)</h1>
+    </div>
+  </header>
+
+  <main class="container">
+    <article id="content" class="markdown-body" aria-live="polite"></article>
+  </main>
+
+  <footer class="container footer">
+    <small>Rendered from <em>RESEARCH.md</em></small>
+  </footer>
+
+  <script id="source-md" type="text/markdown">
+# Hercules SWE AI Agent Interview Grind Guide (Ground-Up Deep Rewrite)
+
+This rewrite is intentionally detailed. It is built for someone who already knows modern product engineering, but wants to speak with real systems depth about AI agents in senior interviews.
+
+You are not trying to memorize random buzzwords. You are building a mental model that lets you explain architecture decisions under constraints, defend tradeoffs, and show how you would operate the system in production.
+
+---
+
+## 0) How to Use This Guide
+
+Read each section in two passes.
+
+Pass 1: understand the core mechanism.
+Ask: what problem does this layer solve, and what breaks if it is missing?
+
+Pass 2: convert to interview language.
+Ask: how would I explain this in a concrete scenario with constraints like reliability, cost, security, and team velocity?
+
+If a section feels too theoretical, anchor it with this default scenario:
+"A user asks an AI coding agent to make a multi-file change, run tests, and propose a safe rollout plan for production."
+
+---
+
+## 1) Why the Learning Order Matters
+
+Most people fail this domain because they learn in the wrong order. They start with prompts or model comparisons before they understand system boundaries. That is like learning SQL optimizations before learning what a transaction is.
+
+The correct order is architecture first, then contracts, then runtime, then data roles, then context engineering, then evals/observability, then stack specifics.
+
+Why? Because everything advanced depends on clear boundaries. Retrieval quality only makes sense when you know who calls retrieval and how failures are handled. Evals only matter when you can define expected behavior and operational constraints. Tooling comparisons are useless if you do not know what capabilities the harness must govern.
+
+Recommended sequence:
+
+1. Agent architecture mental model.
+2. API design and reliability semantics.
+3. Monorepo and containerized execution model.
+4. Data store role separation: Postgres, Redis, ClickHouse.
+5. Context engineering: RAG, compaction, caching.
+6. Evals and quality discipline.
+7. Observability and reliability operations.
+8. Cloud and infrastructure choices.
+9. Framework/tooling specifics.
+10. Harness and skills governance.
+
+---
+
+## 2) AI Agent Product Architecture From First Principles
+
+An AI agent product is a distributed system where language models are only one component. The product is not "a model that answers." It is a loop that converts intent into actions, validates those actions, and stores enough state to improve over time.
+
+If you explain it this way in interviews, you immediately sound senior because you are framing the system as control flow, not as model magic.
+
+### Core Runtime Loop
+
+1) Intent capture and framing.
+The user request is often ambiguous, incomplete, or overloaded with hidden constraints. The first job is to parse intent and classify risk. "Refactor this module" is very different from "run migrations in prod." The system should identify what is known, what is missing, and whether clarification or approval is required.
+
+2) Context assembly.
+The model needs relevant context to reason well. This includes selected conversation history, durable memory, retrieved repository/docs fragments, tool schemas, and policy instructions. Context assembly is an optimization problem: too little context causes hallucination; too much context dilutes signal and increases cost/latency.
+
+3) Plan and tool execution.
+The model creates a plan and performs tool calls. The runtime should enforce allowlists, schema validation, timeout policy, retry limits, and cancellation semantics. Tool outputs are not just data; they are state transitions in a larger workflow.
+
+4) Verification and policy gates.
+Agent output is not accepted just because the model says "done." You run tests, linters, static checks, security policies, and task-specific assertions. This converts probabilistic generation into deterministic acceptance criteria.
+
+5) Persistence and traceability.
+The system stores conversation state, tool traces, artifacts, outcomes, and metrics. Persisting this trail enables replay, debugging, auditing, and learning. Without it, you cannot explain failures or reliably improve.
+
+6) Iterate, escalate, or finalize.
+If checks pass and policy allows, continue or finalize. If risk is high or confidence is low, request approval or clarification. Good products make this handoff explicit so users understand why the agent paused.
+
+### Architecture Boundaries You Must Be Able to Explain
+
+Client/editor boundary.
+This is where users express intent and inspect progress. Treat it as a robust state machine: streaming updates, optimistic UI, rollback behavior, conflict resolution for late events, and clear affordances for approve/reject/retry.
+
+Orchestration API boundary.
+This layer is admission control and request governance. It normalizes requests, applies auth and tenant policy, enforces rate limits, creates session state, and selects model/runtime routing based on latency, cost, and capability targets.
+
+Agent runtime boundary.
+This is the execution brain. It coordinates tool calls and subagents, handles retries/timeouts/cancellations, and manages context compaction. Think of it as deterministic orchestration wrapped around probabilistic reasoning.
+
+Retrieval boundary.
+This layer transforms external knowledge into model-usable evidence. It owns ingestion, chunking, indexing, ranking, and filtering. Strong retrieval is not "vector search only"; it is precision control, relevance ranking, and permission-aware grounding.
+
+Execution sandbox boundary.
+Any system that can execute code or commands must isolate execution. Sandboxes enforce least privilege, filesystem/network constraints, resource quotas, and explicit approvals for dangerous operations.
+
+Telemetry/eval boundary.
+This layer measures behavior and quality. It captures traces, metrics, logs, and eval signals so you can distinguish true improvements from random variance.
+
+Interview line that works:
+"I would start with a modular monolith and strict internal boundaries, then split services only when measurable operational pressure justifies it."
+
+Resources:
+- https://martinfowler.com/articles/microservices.html
+- https://martinfowler.com/bliki/MonolithFirst.html
+- https://developers.cloudflare.com/agents/
+
+---
+
+## 3) API Design as Contract Engineering Under Change
+
+API design is not about pretty endpoints. It is the design of a long-lived contract between independent systems that evolve at different speeds.
+
+When people say "we have a REST API," that tells you syntax style, not contract quality.
+
+### What Good API Design Actually Includes
+
+Domain mapping.
+Your resources and actions should map to business workflows, not directly to tables. If clients need to know your schema internals, your contract is leaking abstraction.
+
+Evolution safety.
+Assume multiple clients, staggered deployments, and long upgrade tails. Prefer additive change. Publish deprecations with migration windows. Treat breaking changes as expensive events that need explicit governance.
+
+Operational semantics.
+Define idempotency where retries are possible. Move long-running work to async jobs with status resources. Use stable machine-readable errors so clients can implement deterministic recovery behavior.
+
+Performance shape.
+Support pagination, filtering, sorting, projection, and batching where needed. Prevent chatty call graphs that create accidental latency. Include caching semantics and invalidation rules as part of contract behavior.
+
+Security and tenancy.
+Authentication identifies the caller. Authorization constrains actions. Tenant isolation constrains data visibility. These are not middleware afterthoughts; they are core contract dimensions.
+
+Observability by design.
+Include request IDs and trace propagation headers so multi-service debugging is possible. Instrument latency/error rates aligned to SLOs.
+
+Fast interview answer:
+"A good API gives stable semantics under failure and change, not just clean endpoint naming."
+
+Resource:
+- https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design
+
+---
+
+## 4) Monorepo Strategy: Benefits, Failure Modes, and Controls
+
+A monorepo is a version-control strategy. It does not force monolith architecture or prohibit microservices.
+
+Why teams choose it:
+
+Atomic changes across boundaries.
+You can update shared types, service implementation, and frontend usage in one pull request with one CI verdict.
+
+Contract consistency.
+Shared schemas and generated types reduce drift and subtle integration breakage.
+
+Build graph efficiency.
+Modern tooling can run affected-only tasks, making large repositories practical.
+
+Platform consistency.
+Shared linting, test runners, release patterns, and tooling standards reduce organizational entropy.
+
+Common failure modes:
+
+Slow CI due to weak cache or poor graph modeling.
+
+Accidental coupling because boundaries are socially weak.
+
+Over-centralized ownership where everyone touches everything.
+
+Mitigations:
+
+Define ownership boundaries in code and process.
+
+Use explicit dependency rules.
+
+Invest early in build/test caching and selective execution.
+
+Resource:
+- https://nx.dev/docs/concepts/decisions/why-monorepos
+
+---
+
+## 5) Containers, Developer Environments, and Git Workflow Reality
+
+Containerization does not reinvent git flow. Branching, committing, rebasing, and pull requests remain conceptually the same.
+
+What containers change is runtime determinism: executable versions, package managers, system dependencies, and CLI behavior become reproducible across teammates and CI.
+
+Where this helps:
+
+Onboarding speed improves because local snowflake setup shrinks.
+
+Dev-prod parity improves because runtime assumptions are explicit in images.
+
+Tooling risk drops because builds/tests execute in controlled environments.
+
+Where teams still get hurt:
+
+Mounted filesystem permissions and ownership mismatches.
+
+Credential forwarding complexity (SSH keys, HTTPS tokens, agent sockets).
+
+Line-ending inconsistencies across Windows, WSL, and Linux containers.
+
+Practical principle:
+"Containerize execution, not developer confusion." Keep the inner loop fast and transparent.
+
+Resources:
+- https://docs.docker.com/get-started/docker-overview/
+- https://docs.docker.com/get-started/introduction/build-and-push-first-image/
+- https://code.visualstudio.com/docs/devcontainers/containers
+- https://containers.dev/
+
+---
+
+## 6) Data Store Role Separation: Postgres, Redis, ClickHouse
+
+Senior systems are easier to operate when each data store has a clear job. Problems begin when one database is forced to be system of record, cache, queue, and analytics warehouse at once.
+
+### Postgres: System of Record (OLTP)
+
+Use Postgres for canonical product state that needs transactions, consistency, constraints, and relational modeling. If losing or duplicating this data harms product correctness, it likely belongs here.
+
+Think of Postgres as truth with durable invariants.
+
+Resource:
+- https://www.postgresql.org/docs/current/tutorial.html
+
+### Redis: Speed Layer and Coordination State
+
+Use Redis for latency-sensitive, often ephemeral state: hot cache, sessions, rate limiting counters, distributed locks, queues, pub/sub signaling.
+
+Redis is powerful because operations are fast and predictable, but design errors are expensive. Key design, TTL strategy, eviction policy, and command choice directly affect tail latency and stability.
+
+Think of Redis as acceleration and coordination, not canonical truth.
+
+Resources:
+- https://redis.io/docs/latest/develop/get-started/
+- https://redis.io/docs/latest/commands
+- https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/
+
+### ClickHouse: Analytics and OLAP
+
+Use ClickHouse for large-scale analytical workloads: event analysis, cohort breakdowns, aggregations over massive telemetry streams, and near-real-time product dashboards.
+
+Columnar layout is excellent for scans and aggregates, but not for transactional row-by-row update patterns.
+
+Think of ClickHouse as decision intelligence over historical behavior.
+
+Resource:
+- https://clickhouse.com/docs/en/intro
+
+Interview framing:
+"I separate correctness-critical transactional state from speed-state and from analytical state so each workload can be optimized independently."
+
+---
+
+## 7) Context Engineering: RAG, Compaction, Prompt Caching
+
+Context engineering is the practical craft of giving models the right information at the right time with the right cost/latency profile.
+
+### 7.1 Retrieval-Augmented Generation (RAG)
+
+RAG is not just vector search. It is a full pipeline:
+
+1. Ingest and normalize source data.
+2. Chunk and enrich with metadata.
+3. Index for retrieval.
+4. Rewrite user queries when needed.
+5. Retrieve and rank candidate chunks.
+6. Filter by permissions/scope.
+7. Inject evidence and ask grounded generation.
+
+Production concerns that matter:
+
+Chunking strategy determines retrieval quality. Poor chunk boundaries create partial, contextless evidence.
+
+Hybrid ranking (lexical + semantic) often beats pure embeddings for precision.
+
+Metadata filtering is mandatory for tenant and permission safety.
+
+Citations and provenance are critical for trust and debugging.
+
+Freshness policies matter: stale indexes cause confidently wrong answers.
+
+Resources:
+- https://developers.openai.com/api/docs/guides/retrieval
+- https://developers.openai.com/api/docs/guides/embeddings
+- https://redis.io/docs/latest/develop/get-started/rag/
+
+### 7.2 Prompt Caching
+
+Prompt caching speeds repeated requests by reusing prefill computation for shared prompt prefixes. This is mostly a latency and cost optimization, not a model-quality trick.
+
+Design rule:
+Place stable, reusable prompt segments first (system instructions, tool schema, static project profile). Place high-variance dynamic content later.
+
+Operational rule:
+Measure hit rate, latency gain, and cost reduction. If hit rate is low, your prompt structure is likely too dynamic too early.
+
+Resources:
+- https://developers.openai.com/api/docs/guides/prompt-caching
+- https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching
+
+### 7.3 Compaction, Memory, and Subagents
+
+Long threads eventually exceed useful context windows and increase noise. Compaction is how you retain meaning while dropping redundant detail.
+
+Healthy pattern:
+
+Keep a short recent verbatim window.
+
+Maintain structured summaries for older turns.
+
+Store durable facts externally for retrieval instead of bloating chat history.
+
+Use subagents for bounded subtasks to reduce cross-task contamination.
+
+Resources:
+- https://developers.openai.com/api/docs/guides/compaction
+- https://developers.openai.com/api/docs/guides/conversation-state
+- https://developers.openai.com/api/docs/guides/tools
+
+---
+
+## 8) Evals: Turning "Feels Better" into Evidence
+
+Without evals, model/system changes become subjective arguments.
+
+### Offline evals
+
+Offline evals use curated, versioned datasets and deterministic scoring methods. Their purpose is controlled regression detection and measurable quality improvement before release.
+
+### Online evals
+
+Online evals observe behavior on real traffic. They detect distribution drift, edge cases, and UX regressions that static datasets miss.
+
+### What to measure
+
+Task correctness and completion quality.
+
+Latency and cost per successful outcome.
+
+Safety and policy compliance rates.
+
+Reliability under tool failure and ambiguous prompts.
+
+User-rated usefulness and follow-up burden.
+
+Working principle:
+Treat prompts, policies, and orchestration configs as versioned software artifacts with regression gates.
+
+Resources:
+- https://developers.openai.com/api/docs/guides/evals
+- https://developers.openai.com/api/docs/guides/evaluation-best-practices
+- https://developers.openai.com/api/docs/guides/graders
+- https://docs.langchain.com/langsmith/evaluation
+
+---
+
+## 9) Observability and Reliability for Agent Systems
+
+Agent systems fail in ways that normal CRUD systems do not: retrieval mismatch, tool argument hallucination, policy refusal loops, runaway context growth, and unstable latency tails. You cannot fix what you cannot trace.
+
+Instrument at minimum:
+
+End-to-end request traces from user prompt through retrieval/tooling to final output.
+
+Tool call success/failure rates, retry counts, timeout frequencies, and latency distributions.
+
+Token economics: prompt size, completion size, cache hit rate, and compaction impact.
+
+Quality metrics over time segmented by model, prompt policy version, tenant cohort, and task type.
+
+OpenTelemetry is useful because it standardizes traces/metrics/logs and reduces vendor lock-in for instrumentation pipelines.
+
+Resource:
+- https://opentelemetry.io/docs/what-is-opentelemetry/
+
+---
+
+## 10) Cloud and Infrastructure: Cloudflare, AWS, Terraform, CDK
+
+Cloud decisions are workload decisions. Choose based on latency profile, data gravity, operational team strengths, and governance constraints.
+
+### Cloudflare
+
+Cloudflare Workers and related products are strong for globally distributed, low-latency API execution and edge-heavy orchestration patterns.
+
+They are especially relevant when request handling benefits from geographic proximity and lightweight event-driven runtime behavior.
+
+Resources:
+- https://developers.cloudflare.com/workers/
+- https://developers.cloudflare.com/agents/
+- https://developer.mozilla.org/en-US/docs/Web/API/Service_WORKER_API
+
+Note:
+Service Workers (browser runtime) and Cloudflare Workers (edge runtime) share event-driven concepts but are different execution environments.
+
+### Terraform and CDK
+
+Terraform is declarative multi-provider infrastructure management with strong state-driven workflows.
+
+AWS CDK uses language-level constructs to define AWS infrastructure with higher abstraction and rich code reuse patterns.
+
+In practice, teams choose based on provider scope, platform standards, and whether they prioritize declarative uniformity or code-centric AWS-native composition.
+
+Resources:
+- https://developer.hashicorp.com/terraform/docs
+- https://github.com/aws/aws-cdk
+
+---
+
+## 11) Why Hono and Drizzle Matter in This Stack
+
+### Hono
+
+Hono is a lightweight TypeScript web framework optimized for fast API development and edge compatibility. It maps well to teams building API-first services that may run across serverless and edge runtimes.
+
+Interview relevance:
+Use Hono when you want minimal framework overhead, clear middleware composition, and good ergonomics for edge deployment models.
+
+Resource:
+- https://hono.dev/docs/
+
+### Drizzle ORM
+
+Drizzle is SQL-forward and type-safe. It gives strong TypeScript integration while still keeping SQL visible rather than hiding database behavior behind heavy abstraction.
+
+Interview relevance:
+Use Drizzle when you want explicit schema control, compile-time safety, and predictable query behavior without pretending the database is an object graph.
+
+Resource:
+- https://orm.drizzle.team/docs/overview
+
+---
+
+## 12) Agent Harness Comparison: Codex, Claude Code, Cursor, Copilot
+
+Do not compare harnesses by vague intelligence impressions. Compare operating models.
+
+Key dimensions:
+
+Session model.
+How context persists, resumes, and branches across tasks.
+
+Tooling model.
+What tools are available, how approvals work, and how policy restrictions are enforced.
+
+Execution model.
+Local, remote, or hybrid execution; foreground vs background jobs; concurrency controls.
+
+Reliability model.
+How retries, error handling, and validation loops are implemented.
+
+Governance model.
+Instruction hierarchy, memory behavior, audit trail quality, and enterprise controls.
+
+This gives you a real rubric for selecting a harness based on organizational needs, not hype.
+
+Official docs:
+- https://developers.openai.com/codex
+- https://code.claude.com/docs/en/overview
+- https://cursor.com/docs
+- https://docs.github.com/en/copilot
+- https://code.visualstudio.com/docs/copilot/overview
+
+---
+
+## 13) Skills: Reusable Agent Capabilities with Governance
+
+Skills are reusable capability packages that combine instructions, conventions, and optional artifacts/scripts for a known workflow.
+
+Typical shape:
+
+1. SKILL manifest with scope and rules.
+2. Optional helper templates/scripts/examples.
+3. Versioned evolution and controlled rollout.
+
+Why they matter:
+
+They encode team best practices once and scale them.
+
+They reduce prompt drift and ad hoc behavior.
+
+They improve consistency across users and sessions.
+
+Why they require governance:
+
+Skills can influence tool usage and data handling.
+
+Poorly scoped skills can overreach or bypass intended review boundaries.
+
+High-impact operations should require explicit approval gates.
+
+Resource:
+- https://developers.openai.com/api/docs/guides/tools-skills
+
+---
+
+## 14) Reordered 1-Day Intensive Plan (Detailed and Output-Driven)
+
+This plan is intentionally practical. Every block ends with a concrete output that forces understanding.
+
+### Block A (2h): Architecture and API Contracts
+
+Read:
+- https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design
+- https://martinfowler.com/bliki/MonolithFirst.html
+
+Produce:
+
+One architecture diagram with the six boundaries.
+
+One API contract checklist including idempotency, async jobs, deprecation rules, auth model, tracing headers, and error taxonomy.
+
+Success criterion:
+You can explain where each failure class is handled.
+
+### Block B (1.5h): Monorepo and Container Workflow
+
+Read:
+- https://nx.dev/docs/concepts/decisions/why-monorepos
+- https://code.visualstudio.com/docs/devcontainers/containers
+
+Produce:
+
+A 90-second explanation of monorepo advantages, risks, and controls.
+
+A 90-second explanation of what containerization changes and what it does not.
+
+Success criterion:
+You can answer "why monorepo here?" without handwaving.
+
+### Block C (2h): Data Role Separation
+
+Read:
+- https://www.postgresql.org/docs/current/tutorial.html
+- https://redis.io/docs/latest/develop/get-started/
+- https://clickhouse.com/docs/en/intro
+
+Produce:
+
+A decision table mapping common workloads to Postgres, Redis, or ClickHouse.
+
+One anti-pattern list for each store (what not to put there).
+
+Success criterion:
+You can justify each placement with latency/consistency semantics.
+
+### Block D (2.5h): Context Engineering
+
+Read:
+- https://developers.openai.com/api/docs/guides/retrieval
+- https://developers.openai.com/api/docs/guides/prompt-caching
+- https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching
+
+Produce:
+
+A retrieval pipeline design from ingestion to grounded response generation.
+
+A prompt layout that maximizes cache reuse while preserving correctness.
+
+Success criterion:
+You can explain why each context segment appears where it does.
+
+### Block E (1.5h): Evals and Observability
+
+Read:
+- https://developers.openai.com/api/docs/guides/evals
+- https://developers.openai.com/api/docs/guides/graders
+- https://opentelemetry.io/docs/what-is-opentelemetry/
+
+Produce:
+
+An offline eval suite proposal with scoring dimensions.
+
+An online monitoring KPI dashboard list with alert thresholds.
+
+Success criterion:
+You can define "better" quantitatively.
+
+### Block F (1.5h): Stack and Harness Conversion
+
+Read:
+- https://developers.cloudflare.com/workers/
+- https://developers.cloudflare.com/agents/
+- https://hono.dev/docs/
+- https://orm.drizzle.team/docs/overview
+- https://developer.hashicorp.com/terraform/docs
+- https://github.com/aws/aws-cdk
+- https://developers.openai.com/codex
+- https://code.claude.com/docs/en/overview
+- https://cursor.com/docs
+- https://docs.github.com/en/copilot
+- https://developers.openai.com/api/docs/guides/tools-skills
+
+Produce:
+
+A five-minute architecture walkthrough from request to validated output to telemetry.
+
+A harness selection rubric for your own team context.
+
+Success criterion:
+You can discuss tradeoffs with confidence instead of listing features.
+
+---
+
+## 15) Interview Conversion: How to Sound Senior and Concrete
+
+Use this answer skeleton for almost any architecture question:
+
+1. Clarify goal and constraints.
+2. Define explicit boundaries and ownership.
+3. Name likely failure modes and mitigation controls.
+4. Define success metrics and evaluation plan.
+5. Propose rollout path with fallback strategy.
+
+Useful phrases (because they are operationally true):
+
+"I optimize for evolvability under change, not just initial elegance."
+
+"I separate transactional truth, speed-state, and analytical state so each layer can be tuned safely."
+
+"I treat retrieval quality, policy controls, and eval coverage as product features, not plumbing."
+
+"I use observability to verify architecture intent against real runtime behavior."
+
+---
+
+## 16) Curated Reference Links
+
+Architecture/API/Monorepo:
+- https://martinfowler.com/articles/microservices.html
+- https://martinfowler.com/bliki/MonolithFirst.html
+- https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design
+- https://nx.dev/docs/concepts/decisions/why-monorepos
+
+Containers and development workflow:
+- https://docs.docker.com/get-started/docker-overview/
+- https://docs.docker.com/get-started/introduction/build-and-push-first-image/
+- https://code.visualstudio.com/docs/devcontainers/containers
+- https://containers.dev/
+
+Data stores:
+- https://www.postgresql.org/docs/current/tutorial.html
+- https://redis.io/docs/latest/develop/get-started/
+- https://redis.io/docs/latest/commands
+- https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/
+- https://clickhouse.com/docs/en/intro
+
+Context engineering:
+- https://developers.openai.com/api/docs/guides/retrieval
+- https://developers.openai.com/api/docs/guides/embeddings
+- https://redis.io/docs/latest/develop/get-started/rag/
+- https://developers.openai.com/api/docs/guides/prompt-caching
+- https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching
+- https://developers.openai.com/api/docs/guides/tools
+- https://developers.openai.com/api/docs/guides/compaction
+- https://developers.openai.com/api/docs/guides/conversation-state
+
+Evals and observability:
+- https://developers.openai.com/api/docs/guides/evals
+- https://developers.openai.com/api/docs/guides/evaluation-best-practices
+- https://developers.openai.com/api/docs/guides/graders
+- https://docs.langchain.com/langsmith/evaluation
+- https://opentelemetry.io/docs/what-is-opentelemetry/
+
+Stack and harnesses:
+- https://developers.cloudflare.com/workers/
+- https://developers.cloudflare.com/agents/
+- https://developer.mozilla.org/en-US/docs/Web/API/Service_WORKER_API
+- https://developer.hashicorp.com/terraform/docs
+- https://github.com/aws/aws-cdk
+- https://hono.dev/docs/
+- https://orm.drizzle.team/docs/overview
+- https://developers.openai.com/codex
+- https://code.claude.com/docs/en/overview
+- https://cursor.com/docs
+- https://docs.github.com/en/copilot
+- https://code.visualstudio.com/docs/copilot/overview
+- https://developers.openai.com/api/docs/guides/tools-skills
+
+---
+
+If needed next, I can add a second embedded file with founder-style interview questions, ideal answer frameworks, and a timed two-hour mock drill script.
+  </script>
+
+  <script>
+    const src = document.getElementById('source-md').textContent;
+    document.getElementById('content').innerHTML = marked.parse(src, {gfm:true});
+    document.getElementById('content').querySelectorAll('a').forEach(a=>{a.target='_blank'; a.rel='noopener noreferrer';});
+  </script>
+</body>
+</html>
