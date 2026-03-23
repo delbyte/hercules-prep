@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Model Failure Playbook | Round 2 Plan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>Model Failure Playbook (Expanded)</h1>
+    </div>
+  </header>
+
+  <main class="container">
+    <article id="content" class="markdown-body" aria-live="polite"></article>
+  </main>
+
+  <footer class="container footer">
+    <small>Round2Plan model failures · tuned for weak-model coding interview conditions</small>
+  </footer>
+
+  <script id="source-md" type="text/markdown">
+## Navigation
+
+- [Today Plan](index.html)
+- [System Architecture Deep Dive](architecture.html)
+- [Model Failure Playbook](model-failures.html)
+- [Ralph Loop + Skills + Multi-Agent Ops](skills-and-agents.html)
+
+---
+
+## Why This Matters
+
+In your interview, the model will likely be imperfect. The CTO is checking whether you can **manage model failure like an engineer**.
+
+Your goal is not zero mistakes. Your goal is **fast detection + disciplined recovery + accurate narration**.
+
+---
+
+## Core Failure Classes (With Detection + Fix)
+
+| Failure Class | Typical Symptom | Fast Detection | Recovery Move |
+|---|---|---|---|
+| Requirement collapse | Solves only part of task | Missing checklist item coverage | Force requirements restatement before implementation |
+| Tool schema mismatch | Wrong args/fields in calls | Tool error payloads | Enforce strict schema echo + validation step |
+| Context drift | Starts unrelated work | Mentions wrong files/goals | Hard reset prompt with current objective only |
+| Shallow edits | Partial patch breaks references | Build/test/import breakage | Ask for symbol-impact map before patch |
+| False completion | Says done without evidence | No test output/log evidence | Require proof block: checks run + outcomes |
+| Over-editing | Touches unrelated files | Diff too broad | Minimal patch-only instruction |
+| Looping retries | Repeats same failing action | Same error repeated 2+ times | Switch strategy; ask for 2 alternative fixes |
+| Latency cliff | Slow, verbose, noisy responses | Response time spikes + token bloat | Narrow prompt + compact context |
+
+---
+
+## Inferior-Model Pattern Notes (Practical)
+
+The exact behavior varies, but weak-model sessions commonly show:
+
+1. Premature certainty.
+2. Incomplete global refactors.
+3. Weak error interpretation.
+4. Poor long-context consistency.
+5. Tool call brittleness under schema complexity.
+
+### Mitigation defaults that usually help
+
+1. Use strict output template.
+2. Ask for assumptions first.
+3. Limit patch scope to one objective.
+4. Demand verification evidence.
+5. Require explicit unresolved risks section.
+
+---
+
+## Hard Reset Protocol (Use Verbatim)
+
+```text
+Reset.
+Objective: <single sentence>
+Constraints:
+1) <hard requirement>
+2) <hard requirement>
+3) Minimal diff only
+4) No claims without verification
+
+Output required:
+- Assumptions
+- Plan (<=6 bullets)
+- Patch
+- Checks run + results
+- Risks/unknowns
+```
+
+---
+
+## Verification Loop You Should Run Every Iteration
+
+1. Small patch.
+2. Smallest possible check.
+3. If fail, ask model for root cause + 2 alternatives.
+4. Pick one path and re-run.
+5. Update progress summary with what changed and why.
+
+### Red-line policy
+
+If the same error repeats twice, stop and force a strategy change. Do not let the model spiral.
+
+---
+
+## Prompt Templates for Stability
+
+### Template A - Requirement lock
+
+```text
+List all requirements in checklist form.
+Map each requirement to one implementation step.
+Do not write code until checklist is complete.
+```
+
+### Template B - Minimal patch mode
+
+```text
+Apply a minimal patch for only <target behavior>.
+Do not modify formatting or unrelated code.
+Return changed files and reasons.
+```
+
+### Template C - Verification-first
+
+```text
+Before final answer, provide:
+1) checks executed
+2) pass/fail result
+3) unresolved risks
+If checks were not run, state that explicitly.
+```
+
+---
+
+## Micro-Eval Method for Interview Day
+
+Create 5 mini prompts representing the challenge type and score each prompt version:
+
+1. Requirement coverage.
+2. Correctness.
+3. Patch minimality.
+4. Verification quality.
+5. Latency.
+
+Select the prompt style with the highest consistency, not the highest single-run output.
+
+Resources:
+
+- https://developers.openai.com/api/docs/guides/evals
+- https://developers.openai.com/api/docs/guides/evaluation-best-practices
+- https://developers.openai.com/api/docs/guides/graders
+- https://platform.claude.com/docs/en/docs/build-with-claude/tool-use
+
+---
+
+## What Impresses CTOs Most Here
+
+1. You catch failures quickly.
+2. You do not hide uncertainty.
+3. You tighten scope under pressure.
+4. You produce auditable reasoning and proof.
+
+---
+
+## Next Page
+
+Deep Ralph loop and multi-agent ops: [Ralph Loop + Skills + Multi-Agent Ops](skills-and-agents.html)
+  </script>
+
+  <script>
+    const src = document.getElementById('source-md').textContent;
+    document.getElementById('content').innerHTML = marked.parse(src, { gfm: true });
+    document.getElementById('content').querySelectorAll('a').forEach(a => {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    });
+  </script>
+</body>
+</html>

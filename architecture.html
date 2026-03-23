@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>System Architecture Deep Dive | Round 2 Plan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>System Architecture Deep Dive (Expanded)</h1>
+    </div>
+  </header>
+
+  <main class="container">
+    <article id="content" class="markdown-body" aria-live="polite"></article>
+  </main>
+
+  <footer class="container footer">
+    <small>Round2Plan architecture · Focus: webapp system design + modern agent stack</small>
+  </footer>
+
+  <script id="source-md" type="text/markdown">
+## Navigation
+
+- [Today Plan](index.html)
+- [System Architecture Deep Dive](architecture.html)
+- [Model Failure Playbook](model-failures.html)
+- [Ralph Loop + Skills + Multi-Agent Ops](skills-and-agents.html)
+
+---
+
+## What You Asked For (Directly)
+
+You want architecture/system design depth, not shallow API talk. So this page is centered on:
+
+1. What each top tool is.
+2. Why it is used.
+3. How pieces connect.
+4. A concrete data flow between Postgres and Redis.
+5. Hosting patterns on AWS and edge runtimes.
+
+---
+
+## 1) Baseline Architecture for AI Webapp + Agent System
+
+Think in boundaries, not vendors.
+
+Core components:
+
+1. Web client (user interactions, streaming UI).
+2. Edge/API layer (request handling, auth, routing).
+3. Agent orchestrator runtime (planning/tool calls/retries).
+4. Persistent truth store (Postgres).
+5. Fast state/cache/queues (Redis).
+6. Artifact store (S3/R2).
+7. Model/tool adapters.
+8. Observability and evals.
+
+### Hosted-on-what map (practical)
+
+| Layer | Common Host | Why |
+|---|---|---|
+| UI | CDN/static host | Cheap, fast global delivery |
+| API/Edge | Cloudflare Workers or API Gateway + Lambda/ECS | Low-latency request handling |
+| Orchestrator | Container runtime (ECS/Fargate/Kubernetes) | Long-running control loops + tool access |
+| Postgres | AWS RDS/Aurora PostgreSQL | Managed backups, failover, reliability |
+| Redis | AWS ElastiCache for Redis | Fast in-memory reads/writes and caching |
+| Object artifacts | AWS S3 or Cloudflare R2 | Durable file/object storage |
+| Logs/traces | CloudWatch + OpenTelemetry sink or Datadog/New Relic | Debug + production reliability |
+
+---
+
+## 2) What Cloudflare Workers Are, and Why Use Them
+
+Cloudflare Workers are serverless JavaScript/TypeScript compute running close to users at the edge network.
+
+Use Workers when:
+
+- You need low-latency request processing globally.
+- You want lightweight APIs, auth checks, request normalization.
+- You are fronting heavier services and need fast admission control.
+
+Do not put everything in Workers:
+
+- Heavy compute, complex long-lived orchestration, and privileged tool execution often fit better in dedicated backend containers or workers.
+
+High-value pattern:
+
+1. Worker receives request.
+2. Worker validates/authenticates.
+3. Worker routes to orchestrator service.
+4. Worker streams response back to client.
+
+Resources:
+
+- https://developers.cloudflare.com/workers/
+- https://developers.cloudflare.com/agents/
+- https://developers.cloudflare.com/workers/platform/limits/
+- https://blog.cloudflare.com/introducing-agents-sdk/
+
+---
+
+## 3) What Redis Is, and Why It Exists in This Stack
+
+Redis is an in-memory data structure store used for speed-sensitive workloads.
+
+Typical uses:
+
+- Cache hot data from Postgres.
+- Session and short-lived conversation state.
+- Rate limiting counters.
+- Job queues/pubsub coordination.
+- Distributed lock semantics (carefully).
+
+Why not use Redis as permanent truth?
+
+- Redis is fast-state first. You can persist Redis, but canonical product truth with strict relational invariants is typically better in Postgres.
+
+Resources:
+
+- https://redis.io/docs/latest/develop/get-started/
+- https://redis.io/docs/latest/commands/
+- https://redis.io/learn/howtos/solutions/caching
+- https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/
+
+---
+
+## 4) What Hono Is, and Why People Use It
+
+Hono is a lightweight web framework for JavaScript/TypeScript that works well in edge and serverless environments.
+
+Why teams choose it:
+
+- Very small footprint.
+- Fast route/middleware ergonomics.
+- Good for edge-compatible API services.
+
+Where it fits:
+
+- API gateway layer.
+- Lightweight orchestration API.
+- Internal service adapters.
+
+Resources:
+
+- https://hono.dev/docs/
+- https://hono.dev/docs/getting-started/basic
+- https://hono.dev/docs/concepts/middleware
+
+---
+
+## 5) What AWS Is Used For Here
+
+AWS in this context is your managed infrastructure backbone.
+
+Typical mapping:
+
+- Compute: ECS/Fargate, Lambda, EKS.
+- Database: RDS/Aurora PostgreSQL.
+- Cache: ElastiCache for Redis.
+- Storage: S3.
+- Networking: VPC, subnets, security groups, ALB.
+- Security: IAM, KMS, Secrets Manager.
+- Observability: CloudWatch/X-Ray/OpenTelemetry exporters.
+
+Resources:
+
+- https://aws.amazon.com/products/
+- https://aws.amazon.com/rds/postgresql/
+- https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html
+- https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html
+- https://docs.aws.amazon.com/whitepapers/latest/overview-deployment-options/overview-deployment-options.html
+
+---
+
+## 6) How to Host Postgres on AWS (Practical Sequence)
+
+### Path A: Managed RDS PostgreSQL (most common)
+
+1. Create VPC and private subnets for DB.
+2. Create RDS PostgreSQL instance (or Aurora PostgreSQL).
+3. Configure security group: allow traffic only from app subnets/services.
+4. Store credentials in AWS Secrets Manager.
+5. Enable automated backups + Multi-AZ if needed.
+6. Connect app using SSL and pooled connections.
+7. Run migrations from CI/CD or controlled job runner.
+
+### Path B: Aurora PostgreSQL (when scale/HA needs grow)
+
+- Similar concept, better read scaling and managed failover options.
+
+Resources:
+
+- https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CreateDBInstance.html
+- https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_BestPractices.html
+- https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.html
+
+---
+
+## 7) Redis <-> Postgres Flow (Your Exact Question)
+
+You asked:
+
+"How to get data into Redis from Postgres and then persist modified data to Postgres from Redis when user modifies it?"
+
+There are multiple patterns. Use the right one intentionally.
+
+### Pattern 1: Cache-Aside (recommended default)
+
+Read path:
+
+1. App checks Redis for key.
+2. If hit: return value.
+3. If miss: read from Postgres, return result, write to Redis with TTL.
+
+Write path:
+
+1. User modifies data.
+2. App writes authoritative update to Postgres in transaction.
+3. App invalidates Redis key (or updates it immediately).
+
+Why this is best default:
+
+- Postgres remains canonical truth.
+- Redis accelerates reads without owning durability semantics.
+
+### Pattern 2: Write-Through Cache
+
+1. App writes to cache and DB in same request path.
+2. Easier consistency for reads, higher write latency coupling.
+
+### Pattern 3: Write-Behind / Async Flush (advanced, risky)
+
+1. App writes to Redis first.
+2. Async worker flushes to Postgres later.
+3. Requires replay safety, idempotency keys, dead-letter handling, and strong durability strategy.
+
+Use this only when you intentionally accept temporary inconsistency and have robust recovery controls.
+
+### Suggested interview-safe answer
+
+"I'd use cache-aside with Postgres as source of truth. Reads hit Redis first with TTL; misses are hydrated from Postgres. Writes commit to Postgres transactionally, then invalidate or refresh Redis keys. For high write throughput, I'd consider an async pipeline only with idempotency, durable queueing, and replay support."
+
+Helpful resources:
+
+- https://redis.io/learn/howtos/solutions/caching-architecture/cache-aside
+- https://redis.io/learn/howtos/solutions/caching-architecture/write-through
+- https://microservices.io/patterns/data/transactional-outbox.html
+- https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/cache-aside.html
+
+---
+
+## 8) A Concrete End-to-End User Modification Flow
+
+Example: user edits project settings.
+
+1. UI sends PATCH request to API.
+2. API validates and authorizes request.
+3. Service writes new value to Postgres transaction.
+4. Service publishes domain event (optional) and invalidates Redis key.
+5. Next read is either:
+   - cache miss -> hydrate from Postgres -> repopulate Redis, or
+   - immediate cache refresh post-write.
+6. Metrics and traces recorded for latency + errors.
+
+Reliability controls:
+
+- Idempotency key for retries.
+- Optimistic locking/version column for conflict handling.
+- Circuit breaker/timeouts on Redis and DB calls.
+- Fallback behavior if Redis is down: serve from Postgres directly.
+
+---
+
+## 9) If CTO Asks "Monolith or Microservices?"
+
+Strong answer:
+
+"Start with modular monolith boundaries because team velocity and correctness matter most early. Split into services only when independent scaling, deployment cadence, or reliability isolation pressure is measurable."
+
+Resources:
+
+- https://martinfowler.com/bliki/MonolithFirst.html
+- https://martinfowler.com/articles/microservices.html
+
+---
+
+## 10) System Design Study Resources (Top Tier)
+
+### Architecture and reliability
+
+- https://aws.amazon.com/architecture/well-architected/
+- https://learn.microsoft.com/en-us/azure/architecture/guide/
+- https://sre.google/sre-book/table-of-contents/
+
+### Data and caching
+
+- https://www.postgresql.org/docs/current/index.html
+- https://redis.io/docs/latest/
+- https://use-the-index-luke.com/
+
+### Event-driven/data movement
+
+- https://microservices.io/patterns/data/transactional-outbox.html
+- https://aws.amazon.com/event-driven-architecture/
+
+### Cloudflare and edge
+
+- https://developers.cloudflare.com/workers/
+- https://developers.cloudflare.com/workers/reference/how-workers-works/
+
+---
+
+## Next Page
+
+Now learn failure handling deeply: [Model Failure Playbook](model-failures.html)
+  </script>
+
+  <script>
+    const src = document.getElementById('source-md').textContent;
+    document.getElementById('content').innerHTML = marked.parse(src, { gfm: true });
+    document.getElementById('content').querySelectorAll('a').forEach(a => {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    });
+  </script>
+</body>
+</html>

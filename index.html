@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Round 2 Plan | Hercules SWE AI Agent</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>Round 2 Plan: 5-Hour Interview Execution System</h1>
+    </div>
+  </header>
+
+  <main class="container">
+    <article id="content" class="markdown-body" aria-live="polite"></article>
+  </main>
+
+  <footer class="container footer">
+    <small>Round2Plan index · Last updated March 23, 2026</small>
+  </footer>
+
+  <script id="source-md" type="text/markdown">
+## Navigation
+
+- [Today Plan](index.html)
+- [System Architecture Deep Dive](architecture.html)
+- [Model Failure Playbook](model-failures.html)
+- [Ralph Loop + Skills + Multi-Agent Ops](skills-and-agents.html)
+
+---
+
+## What This Is Optimizing For
+
+Your interview is not about perfect code. It is about proving you can **operate an agentic build loop under constraints** with a weaker model.
+
+Your visible senior signal:
+
+1. Clarify objective and constraints fast.
+2. Propose architecture with clean boundaries.
+3. Spawn parallel work intentionally.
+4. Validate aggressively.
+5. Recover quickly when model/tooling breaks.
+6. Explain tradeoffs clearly to CTO-level audience.
+
+---
+
+## 5-Hour Execution Plan (Expanded)
+
+### Block 1 (00:00-00:30) - Lock your operating brief
+
+Output:
+
+- One 1-page "how I run this challenge" card.
+- One acceptance checklist you can read out loud.
+
+Checklist format:
+
+1. Problem goal.
+2. Constraints (time, model reliability, infra, scope).
+3. MVP slice definition.
+4. What not to build now.
+5. Proof of done.
+
+### Block 2 (00:30-01:45) - System design fundamentals only
+
+Output:
+
+- One architecture map: hosted on what + connects to what.
+- One 2-minute verbal explanation script.
+
+Primary reading page: [System Architecture Deep Dive](architecture.html)
+
+### Block 3 (01:45-02:30) - Docker survival mode
+
+Output:
+
+- 10 command crib sheet.
+- 30-second answer to "how would you containerize this now?"
+
+Minimum command set to rehearse:
+
+```bash
+docker build -t app:local .
+docker run -p 3000:3000 app:local
+docker compose up -d
+docker compose logs -f
+docker compose down
+```
+
+### Block 4 (02:30-03:40) - Ralph loop + multi-agent execution
+
+Output:
+
+- Agent role split template (planner/explorer/implementer/verifier/synthesizer).
+- Ralph loop execution script you can run in any IDE harness.
+
+Primary reading page: [Ralph Loop + Skills + Multi-Agent Ops](skills-and-agents.html)
+
+### Block 5 (03:40-04:35) - Weak-model mistakes and recovery
+
+Output:
+
+- Failure matrix with mitigation prompts.
+- Reset protocol when output drifts.
+
+Primary reading page: [Model Failure Playbook](model-failures.html)
+
+### Block 6 (04:35-05:00) - Mock simulation and debrief
+
+Output:
+
+- 1 mock run result sheet: what failed, why, fix prompt.
+- 1 final interview cheat sheet for tomorrow.
+
+---
+
+## Interview Narration Script (Use This Verbatim Style)
+
+"I'll solve this in short loops. First I'll clarify requirements and define MVP boundaries. Then I'll map an architecture with explicit data flow and failure handling. I'll spawn parallel discovery for unknowns while implementing a minimal vertical slice. After each change, I'll run verification checks and log risks. If the model drifts, I reset context with strict output constraints."
+
+---
+
+## High-Value Drill Prompts
+
+### Drill: unclear requirements
+
+"Given this vague project request, generate 8 clarification questions grouped by product, technical constraints, and deployment assumptions."
+
+### Drill: architecture under pressure
+
+"Design the minimal production architecture for this webapp in 7 components. For each component include host, interface, failure mode, and fallback."
+
+### Drill: weak model containment
+
+"You are error-prone. First output assumptions, then plan (max 6 bullets), then minimal patch, then checks, then unresolved risks. Do not skip any section."
+
+---
+
+## Useful References
+
+- [GitHub Pages Quickstart](https://docs.github.com/en/pages/quickstart)
+- [Docker: What is Docker?](https://docs.docker.com/get-started/docker-overview/)
+- [OpenAI Evals Guide](https://developers.openai.com/api/docs/guides/evals)
+- [OpenAI Prompt Caching](https://developers.openai.com/api/docs/guides/prompt-caching)
+- [Claude Tool Use](https://platform.claude.com/docs/en/docs/build-with-claude/tool-use)
+- [VS Code Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills)
+- [Cursor Rules](https://cursor.com/docs/rules)
+- [MCP Intro](https://modelcontextprotocol.io/docs/getting-started/intro)
+
+---
+
+## Next Page
+
+Go deep now: [System Architecture Deep Dive](architecture.html)
+  </script>
+
+  <script>
+    const src = document.getElementById('source-md').textContent;
+    document.getElementById('content').innerHTML = marked.parse(src, { gfm: true });
+    document.getElementById('content').querySelectorAll('a').forEach(a => {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    });
+  </script>
+</body>
+</html>

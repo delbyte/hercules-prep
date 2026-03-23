@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ralph Loop + Skills + Multi-Agent Ops | Round 2 Plan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>Ralph Loop + Skills + Multi-Agent Ops (Expanded)</h1>
+    </div>
+  </header>
+
+  <main class="container">
+    <article id="content" class="markdown-body" aria-live="polite"></article>
+  </main>
+
+  <footer class="container footer">
+    <small>Round2Plan orchestration · Ralph-focused interview execution playbook</small>
+  </footer>
+
+  <script id="source-md" type="text/markdown">
+## Navigation
+
+- [Today Plan](index.html)
+- [System Architecture Deep Dive](architecture.html)
+- [Model Failure Playbook](model-failures.html)
+- [Ralph Loop + Skills + Multi-Agent Ops](skills-and-agents.html)
+
+---
+
+## Ralph Loop: Why It Is Critical
+
+Ralph loop is important because it gives you a **repeatable operating loop** for coding agents under uncertainty.
+
+In interviews, frameworks win over vibes. Ralph loop gives you a visible framework.
+
+Primary references:
+
+- https://ghuntley.com/ralph/
+- https://ghuntley.com/loop/
+- https://ghuntley.com/subagents/
+
+---
+
+## Practical Ralph Loop (Interview-Ready Form)
+
+Use this as your explicit loop during the CTO challenge.
+
+1. **R - Requirements and risk framing**
+   - restate objective
+   - list assumptions
+   - identify high-risk unknowns
+
+2. **A - Architecture and approach selection**
+   - choose boundaries and data flow
+   - choose initial slice and fallback
+
+3. **L - Launch parallel exploration**
+   - spawn subagents for codebase scan/docs/risk checks
+   - keep one implementation lane
+
+4. **P - Patch minimal vertical slice**
+   - implement smallest useful path
+   - avoid broad edits
+
+5. **H - Harden with verification + handoff**
+   - run checks
+   - summarize evidence and residual risk
+   - decide iterate/escalate/finalize
+
+Then repeat the loop.
+
+### 60-minute interview pacing with Ralph loop
+
+| Minute | Ralph phase | Output |
+|---|---|---|
+| 0-8 | R + A | requirements checklist + architecture sketch |
+| 8-20 | L | subagent findings and implementation plan |
+| 20-40 | P | minimal working slice |
+| 40-50 | H | verification + fixes |
+| 50-60 | R + H | final narrative + next steps |
+
+---
+
+## Multi-Agent Topology You Can Run Anywhere
+
+### Role split
+
+1. Planner.
+2. Explorer (codebase).
+3. Explorer (external docs).
+4. Implementer.
+5. Verifier.
+6. Synthesizer.
+
+### Contracts (non-negotiable)
+
+Each agent must return:
+
+1. What it did.
+2. Evidence.
+3. Unknowns.
+4. Recommended next step.
+
+If no evidence, output is ignored.
+
+---
+
+## VS Code, Cursor, Antigravity: How to Work in Parallel
+
+### VS Code (Copilot agent workflows)
+
+- Use custom instructions for baseline standards.
+- Use skills for reusable workflows.
+- Use subagents to isolate exploration work.
+- Use MCP servers for external data/tools.
+
+Docs:
+
+- https://code.visualstudio.com/docs/copilot/customization/overview
+- https://code.visualstudio.com/docs/copilot/customization/agent-skills
+- https://code.visualstudio.com/docs/copilot/customization/mcp-servers
+
+### Cursor
+
+- Use `.cursor/rules` and `AGENTS.md` for persistent rules.
+- Keep rules small and specific.
+- Use separate chats as role lanes if needed.
+
+Docs:
+
+- https://cursor.com/docs/rules
+- https://cursor.com/docs/context/mcp
+
+### Antigravity (operational mapping)
+
+Even if naming differs, map features to this invariant model:
+
+1. Planning lane.
+2. Exploration lanes.
+3. Implementation lane.
+4. Verification lane.
+5. Synthesis lane.
+
+That mapping keeps your process stable across tool UIs.
+
+---
+
+## Skills Files: What to Build for Your Interview Stack
+
+You asked for strong skills coverage. Build these 5 first.
+
+1. **Spec-writing skill**
+   - input: vague feature ask
+   - output: acceptance criteria + edge cases + test plan
+
+2. **Backend system design skill**
+   - output: architecture options + tradeoff table + rollout plan
+
+3. **Frontend implementation skill**
+   - output: component/state/data-fetch/error/loading checklist
+
+4. **DB and cache skill**
+   - output: schema/index/cache strategy + consistency risks
+
+5. **MCP/external tools skill**
+   - output: trust checks, tool list, safety boundaries, audit notes
+
+Great sources:
+
+- https://github.com/github/awesome-copilot
+- https://github.com/anthropics/skills
+- https://agentskills.io/
+
+---
+
+## File Patterns by Environment
+
+### VS Code
+
+- `.github/copilot-instructions.md`
+- `.github/skills/<skill-name>/SKILL.md`
+- `.github/agents/*.agent.md`
+- `.vscode/mcp.json`
+
+### Cursor
+
+- `.cursor/rules/*.mdc`
+- `AGENTS.md`
+
+### Shared principle
+
+Keep instructions short, composable, and task-triggered.
+
+---
+
+## Prompt Pack for Parallel Execution
+
+### Spawn explorer
+
+```text
+Objective: <single objective>
+Scope: read-only
+Return:
+1) evidence
+2) risks
+3) next action
+```
+
+### Merge findings
+
+```text
+Merge explorer outputs into:
+1) final implementation plan
+2) minimal patch strategy
+3) verification checklist
+```
+
+### Verifier
+
+```text
+Check output against acceptance criteria.
+Return pass/fail with exact gaps and smallest fix.
+```
+
+---
+
+## Ralph Loop Interview Script (90 seconds)
+
+"I run a disciplined loop. I start by locking requirements and risk assumptions, then pick architecture boundaries and a minimal slice. I launch parallel exploration agents for unknowns while I implement a small vertical path. I verify aggressively, summarize residual risk, and loop. This keeps velocity high while controlling model error and rework."
+
+---
+
+## Additional High-Signal Resources
+
+- https://www.anthropic.com/engineering/advanced-tool-use
+- https://modelcontextprotocol.io/docs/learn/architecture
+- https://developers.openai.com/api/docs/guides/tools
+- https://developers.openai.com/api/docs/guides/tools-connectors-mcp
+- https://developers.openai.com/api/docs/guides/conversation-state
+- https://developers.openai.com/api/docs/guides/compaction
+
+---
+
+## Done Order for You Tonight
+
+1. Read Ralph links and write your one-page interpretation.
+2. Build prompt templates in your notes.
+3. Run 2 mock loops with this exact process.
+
+Then go back to [Today Plan](index.html).
+  </script>
+
+  <script>
+    const src = document.getElementById('source-md').textContent;
+    document.getElementById('content').innerHTML = marked.parse(src, { gfm: true });
+    document.getElementById('content').querySelectorAll('a').forEach(a => {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    });
+  </script>
+</body>
+</html>
